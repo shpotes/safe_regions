@@ -10,7 +10,7 @@ class ReLU(nn.Module):
 
     def forward(self, input_tensor):
         if self.training:
-            self.region.update_region(input_tensor.clone())
+            self.region.update_region(input_tensor.detach().clone())
 
         return F.relu(input_tensor, inplace=self.inplace)
 

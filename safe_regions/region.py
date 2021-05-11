@@ -20,11 +20,11 @@ class MinMaxRegion(Region):
         batch_min, _ = detached_tensor.min(dim=0)
 
         if self._max is None:
-            self._max = batch_max
-            self._min = batch_min
+            self._max = batch_max.cpu()
+            self._min = batch_min.cpu()
         else:
-            self._max = torch.max(self._max, batch_max)
-            self._min = torch.min(self._min, batch_min)
+            self._max = torch.max(self._max, batch_max.cpu())
+            self._min = torch.min(self._min, batch_min.cpu())
 
     def evaluate_membership(self, detached_tensor):
         return (self._max < detached_tensor) &  (detached_tensor < self._min)
