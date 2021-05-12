@@ -4,25 +4,29 @@ import torch.nn.functional as F
 import pytorch_lightning as pl
 import torchmetrics.functional as M
 from torchvision import models
+
 from safe_regions.region import Region
 from safe_regions.layers import track_safe_region
+from safe_regions.models.resnet import ResNet18
 
 class ResNet(pl.LightningModule):
     def __init__(
             self,
-            num_output: int,
-            learning_rate: float,
-            track_regions: bool,
-            region_cls: Region
+            region_cls: Region,
+            learning_rate: float = 0.1,
+            momentum: float = 0.9,
+            weight_decay: float = 5e-4,
     ):
         super().__init__()
 
         self.save_hyperparameters()
-        self.model = models.resnet18()
-        self.model.fc = nn.Linear(512, num_output)
 
-        if track_regions:
-            track_safe_region(self.model, region_cls)
+        self.learning_rate = learning_rate
+        self.region_cls = region_cls
+        self.model = ResNet18()
+
+    def track_regions(self):
+        track_safe_region(self.model, self.region_cls)
 
     def forward(self, input_tensor):
         return self.model(input_tensor)
@@ -60,9 +64,11 @@ class ResNet(pl.LightningModule):
         self.log('val_acc', acc)
 
     def configure_optimizers(self):
-        optim = torch.optim.Adam(
+        optim = torch.optim.SGD(
             self.parameters(),
-            lr=self.hparams.learning_rate
+            lr=self.learning_rate,
+            momentum=self.hparams.momentum,
+            weight_decay=self.hparams.weight_decay,
         )
 
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, T_max=200)
