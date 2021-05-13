@@ -1,21 +1,20 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
 import pytorch_lightning as pl
 import torchmetrics.functional as M
+
 from torchvision import models
 
 from safe_regions.region import Region
 from safe_regions.layers import track_safe_region
-from safe_regions.models.resnet import ResNet18
 
 class ResNet(pl.LightningModule):
     def __init__(
             self,
             region_cls: Region,
-            learning_rate: float = 0.1,
-            momentum: float = 0.9,
-            weight_decay: float = 5e-4,
+            learning_rate: float = 3e-4,
     ):
         super().__init__()
 
@@ -23,7 +22,7 @@ class ResNet(pl.LightningModule):
 
         self.learning_rate = learning_rate
         self.region_cls = region_cls
-        self.model = ResNet18()
+        self.model = models.resnet18()
 
     def track_regions(self):
         track_safe_region(self.model, self.region_cls)
@@ -64,17 +63,15 @@ class ResNet(pl.LightningModule):
         self.log('val_acc', acc)
 
     def configure_optimizers(self):
-        optim = torch.optim.SGD(
+        optimizer = optim.Adam(
             self.parameters(),
             lr=self.learning_rate,
-            momentum=self.hparams.momentum,
-            weight_decay=self.hparams.weight_decay,
         )
 
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, T_max=200)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
 
         return {
-            'optimizer': optim,
+            'optimizer': optimizer,
             'lr_schedler': {
                 'scheduler': scheduler,
                 'monitor': 'val_loss'
