@@ -14,6 +14,7 @@ class ResNet(pl.LightningModule):
     def __init__(
             self,
             region_cls: Region,
+            num_classes: int = 10,
             learning_rate: float = 3e-4,
     ):
         super().__init__()
@@ -22,13 +23,20 @@ class ResNet(pl.LightningModule):
 
         self.learning_rate = learning_rate
         self.region_cls = region_cls
+        
         self.model = models.resnet18()
+        hidden_size = self.model.fc.out_features
+        self.proj = nn.Sequential(
+            nn.ReLU(),
+            nn.Linear(hidden_size, num_classes)
+        )
 
     def track_regions(self):
         track_safe_region(self.model, self.region_cls)
 
     def forward(self, input_tensor):
-        return self.model(input_tensor)
+        hidden_state = self.model(input_tensor)
+        return self.proj(hidden_state)
 
     def _common_step(self, batch):
         input_tensor, target = batch
