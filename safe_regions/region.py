@@ -10,6 +10,13 @@ class Region:
     def evaluate_membership(self, detached_tensor):
         raise NotImplementedError
 
+    def get_state(self):
+        raise NotImplementedError
+
+    @classmethod
+    def from_state(cls, state):
+        raise NotImplementedError
+
 class MinMaxRegion(Region):
     def __init__(self):
         self._max = None
@@ -28,3 +35,17 @@ class MinMaxRegion(Region):
 
     def evaluate_membership(self, detached_tensor):
         return (self._max < detached_tensor) &  (detached_tensor < self._min)
+
+    def get_state(self):
+        return {
+            '_max': self._max.clone() if self._max is not None else None,
+            '_min': self._min.clone() if self._min is not None else None,
+        }
+
+    @classmethod
+    def from_state(cls, state):
+        region = cls()
+        region._max = state['_max']
+        region._min = state['_min']
+
+        return region

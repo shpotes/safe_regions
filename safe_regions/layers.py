@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from .region import Region
 
 class ReLU(nn.Module):
     def __init__(self, region_cls):
@@ -13,10 +14,12 @@ class ReLU(nn.Module):
 
         return F.relu(input_tensor)
 
-def track_safe_region(model, region_cls):
-    for layer_name, layer in model.named_children():
-        if isinstance(layer, nn.ReLU):
-            new_relu = ReLU(region_cls)
-            setattr(model, layer_name, new_relu)
-        else:
-            track_safe_region(layer, region_cls)
+    def get_state(self):
+        return self.region.get_state()
+
+    @classmethod
+    def from_state(cls, region_cls, state):
+        relu = cls(region_cls)
+        relu.region = region_cls.from_state(state)
+
+        return relu

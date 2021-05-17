@@ -1,3 +1,5 @@
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,18 +10,16 @@ import torchmetrics.functional as M
 from torchvision import models
 
 from safe_regions.region import Region
-from safe_regions.layers import track_safe_region
+from safe_regions.layers import ReLU
 
 class ResNet(pl.LightningModule):
     def __init__(
             self,
-            region_cls: Region,
+            region_cls: Optional[Region] = None,
             num_classes: int = 10,
             learning_rate: float = 3e-4,
     ):
         super().__init__()
-
-        self.save_hyperparameters()
 
         self.learning_rate = learning_rate
         self.region_cls = region_cls
@@ -31,8 +31,12 @@ class ResNet(pl.LightningModule):
             nn.Linear(hidden_size, num_classes)
         )
 
-    def track_regions(self):
-        track_safe_region(self.model, self.region_cls)
+        self.save_hyperparameters()
+
+        if self.region_cls is not None:
+            self._relu_map = {}
+            self._track_regions(self.model, ('model',))
+            self._track_regions(self.proj, ('proj',))
 
     def forward(self, input_tensor):
         hidden_state = self.model(input_tensor)
@@ -85,3 +89,30 @@ class ResNet(pl.LightningModule):
                 'monitor': 'val_loss'
             }
         }
+
+    def _track_regions(self, module, parent_name=('',)):
+        for idx, (layer_name, layer) in enumerate(module.named_children()):
+            if isinstance(layer, nn.ReLU):
+                new_relu = ReLU(self.region_cls)
+                setattr(module, layer_name, new_relu)
+                self._relu_map[(idx, *parent_name)] = new_relu
+            else:
+                self._track_regions(layer, (*parent_name, layer_name))
+
+    def _recover_regions(self, module, parent_name=('',)):
+        for idx, (layer_name, layer) in enumerate(module.named_children()):
+            if isinstance(layer, ReLU):
+                new_relu = self._relu_map[(idx, *parent_name)]
+                setattr(module, layer_name, new_relu)
+            else:
+                self._recover_regions(layer, (*parent_name, layer_name))
+
+    def on_save_checkpoint(self, checkpoint):
+        relu_map = {k: v.get_state() for k, v in self._relu_map.items()}
+        checkpoint['relu_map'] = relu_map
+
+    def on_load_checkpoint(self, checkpoint):
+        self._relu_map = {k: ReLU.from_state(self.region_cls, v)
+                          for k, v in checkpoint['relu_map'].items()}
+        self._recover_regions(self.model, ('model',))
+        self._recover_regions(self.proj, ('proj',))
