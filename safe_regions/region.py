@@ -76,8 +76,8 @@ class RollingMeanRegion(Region):
 
     def get_state(self):
         return {
-            '_mean': self._mean.clone() if self._max is not None else None,
-            '_std': self._std.clone() if self._min is not None else None,
+            '_mean': self._mean.clone() if self._mean is not None else None,
+            '_std': self._std.clone() if self._std is not None else None,
             'params': {
                 'momentum': self.momentum,
                 'evaluation_sigmas': self.sigmas
