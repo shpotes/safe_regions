@@ -58,8 +58,8 @@ class RollingMeanRegion(Region):
         self.sigmas = evaluation_sigmas
 
     def update_region(self, detached_tensor: torch.Tensor):
-        batch_mean, _ = detached_tensor.mean(dim=0).cpu()
-        batch_std, _ = detached_tensor.std(dim=0).cpu()
+        batch_mean = detached_tensor.mean(dim=0).cpu()
+        batch_std = detached_tensor.std(dim=0).cpu()
 
         if self._mean is None:
             self._mean = batch_mean
