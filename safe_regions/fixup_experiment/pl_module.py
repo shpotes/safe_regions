@@ -73,8 +73,8 @@ class FixupResNet(pl.LightningModule):
         parameters_others = [p[1] for p in self.model.named_parameters() if not ('bias' in p[0] or 'scale' in p[0])]
 
         optimizer = optim.SGD(
-            [{'params': parameters_bias, 'lr': self.base_lr/10.},
-             {'params': parameters_scale, 'lr': self.base_lr/10.},
+            [{'params': parameters_bias, 'lr': self.learning_rate/10.},
+             {'params': parameters_scale, 'lr': self.learning_rate/10.},
              {'params': parameters_others}],
             lr=self.learning_rate,
             momentum=0.9,
